@@ -1447,6 +1447,9 @@ murphyd_CFLAGS  =			\
 		$(BUILTIN_CFLAGS)	\
 		$(JSON_CFLAGS)
 
+murphyd_CFLAGS +=			\
+		-fPIC -pie
+
 murphyd_LDADD  =				\
 		$(BUILTIN_LIBS)         	\
 		$(LINKEDIN_PLUGINS)		\
