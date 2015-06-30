@@ -743,7 +743,15 @@ wsl_ctx_t *wsl_create_context(mrp_mainloop_t *ml, wsl_ctx_cfg_t *cfg)
     cci.ssl_cert_filepath        = cfg->ssl_cert;
     cci.ssl_private_key_filepath = cfg->ssl_pkey;
     cci.ssl_ca_filepath          = cfg->ssl_ca;
+#ifdef WEBSOCKETS_CIPHER_LIST
     cci.ssl_cipher_list          = cfg->ssl_ciphers;
+#else
+    if (cfg->ssl_ciphers != NULL) {
+        mrp_log_error("setting libwebsockets cipher list not supported");
+        errno = EOPNOTSUPP;
+        return NULL;
+    }
+#endif
 
     cci.options     = 0;
     cci.ka_time     = cfg->timeout;
@@ -1323,6 +1331,59 @@ static int verify_client_cert(void *user, void *in, size_t len)
 #endif
 
 
+static int getpollfd(void *user, void *in, size_t len, int *fd, int *mask)
+{
+#if defined WEBSOCKETS_PASSFD_POLLARGS
+    struct libwebsocket_pollargs *args;
+
+    MRP_UNUSED(user);
+    MRP_UNUSED(in);
+
+    args = (struct libwebsocket_pollargs *)in;
+
+    *fd = args->fd;
+    if (mask != NULL)
+        *mask = args->events;
+
+#elif defined WEBSOCKETS_PASSFD_IN
+    static int misdetected = 0;
+    int ufd = (ptrdiff_t)user;
+
+    if (!misdetected) {
+        *fd = (ptrdiff_t)in;
+        if (mask != NULL)
+            *mask = (int)len;
+
+        if (0 < ufd && ufd < 4096) {
+            misdetected = 1;
+            mrp_log_error("*** websockets fd passing convention misdetected.");
+            mrp_log_error("*** fixing it up...");
+            goto fixup;
+        }
+    }
+    else {
+    fixup:
+
+        *fd = ufd;
+        if (mask != NULL)
+            *mask = (int)len;
+    }
+
+#else
+    MRP_UNUSED(in);
+
+    *fd = (ptrdiff_t)user;
+    if (mask != NULL)
+        *mask = (int)len;
+
+#endif
+
+    if (*fd != 0)
+        return 0;
+    else
+        return -1;
+}
+
 
 static int http_event(lws_ctx_t *ws_ctx, lws_t *ws, lws_event_t event,
                       void *user, void *in, size_t len)
@@ -1332,6 +1393,9 @@ static int http_event(lws_ctx_t *ws_ctx, lws_t *ws, lws_event_t event,
     wsl_proto_t *up;
     const char  *ext, *uri;
     int          fd, mask, status, accepted;
+
+    mrp_debug("ctx: %p, ws: %p, event: %d, user: %p, in: %p, len: %zd",
+              ws_ctx, ws, event, user, in, len);
 
     switch (event) {
     case LWS_CALLBACK_ESTABLISHED:
@@ -1405,12 +1469,17 @@ static int http_event(lws_ctx_t *ws_ctx, lws_t *ws, lws_event_t event,
 #else /* WEBSOCKETS_CHANGE_MODE_POLL_FD */
 
     case LWS_CALLBACK_ADD_POLL_FD:
-#ifdef WEBSOCKETS_CONTEXT_INFO           /* just brilliant... */
+        getpollfd(user, in, len, &fd, &mask);
+#if 0
+        /* just brilliant... */
+#if defined(WEBSOCKETS_CONTEXT_INFO) && defined(WEBSOCKETS_CIPHER_LIST)
         fd   = (ptrdiff_t)in;
 #else
         fd   = (ptrdiff_t)user;
 #endif
         mask = (int)len;
+#endif
+
         mrp_debug("start polling fd %d for events 0x%x", fd, mask);
         if (add_fd(ctx, fd, mask))
             return LWS_EVENT_OK;
@@ -1418,10 +1487,14 @@ static int http_event(lws_ctx_t *ws_ctx, lws_t *ws, lws_event_t event,
             return LWS_EVENT_ERROR;
 
     case LWS_CALLBACK_DEL_POLL_FD:
-#ifdef WEBSOCKETS_CONTEXT_INFO           /* just brilliant... */
+        getpollfd(user, in, len, &fd, NULL);
+#if 0
+        /* just brilliant... */
+#if defined(WEBSOCKETS_CONTEXT_INFO) && defined(WEBSOCKETS_CIPHER_LIST)
         fd = (ptrdiff_t)in;
 #else
         fd = (ptrdiff_t)user;
+#endif
 #endif
         mrp_debug("stop polling fd %d", fd);
         if (del_fd(ctx, fd))
@@ -1430,12 +1503,16 @@ static int http_event(lws_ctx_t *ws_ctx, lws_t *ws, lws_event_t event,
             return LWS_EVENT_ERROR;
 
     case LWS_CALLBACK_SET_MODE_POLL_FD:
-#ifdef WEBSOCKETS_CONTEXT_INFO           /* just brilliant... */
+        getpollfd(user, in, len, &fd, &mask);
+#if 0
+        /* just brilliant... */
+#if defined(WEBSOCKETS_CONTEXT_INFO) && defined(WEBSOCKETS_CIPHER_LIST)
         fd   = (ptrdiff_t)in;
 #else
         fd   = (ptrdiff_t)user;
 #endif
         mask = (int)len;
+#endif
         mrp_debug("enable poll events 0x%x for fd %d", mask, fd);
         if (mod_fd(ctx, fd, mask, FALSE))
             return LWS_EVENT_OK;
@@ -1443,12 +1520,16 @@ static int http_event(lws_ctx_t *ws_ctx, lws_t *ws, lws_event_t event,
             return LWS_EVENT_ERROR;
 
     case LWS_CALLBACK_CLEAR_MODE_POLL_FD:
-#ifdef WEBSOCKETS_CONTEXT_INFO           /* just brilliant... */
+        getpollfd(user, in, len, &fd, &mask);
+#if 0
+        /* just brilliant... */
+#if defined(WEBSOCKETS_CONTEXT_INFO) && defined(WEBSOCKETS_CIPHER_LIST)
         fd   = (ptrdiff_t)in;
 #else
         fd   = (ptrdiff_t)user;
 #endif
         mask = (int)len;
+#endif
         mrp_debug("disable poll events 0x%x for fd %d", mask, fd);
         if (mod_fd(ctx, fd, mask, TRUE))
             return LWS_EVENT_OK;

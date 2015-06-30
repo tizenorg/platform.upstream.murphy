@@ -153,7 +153,6 @@ static void print_zones_cb(mrp_console_t *c, void *user_data,
         for (i = 0;  zone_names[i];  i++)
             printf("   %s\n", zone_names[i]);
 
-
         mrp_free(zone_names);
     }
 }
@@ -409,6 +408,7 @@ static void query_resources_request(client_t *client, mrp_msg_t *req)
     mrp_plugin_t     *plugin = data->plugin;
     const char      **names;
     mrp_attr_t       *attrs;
+    bool              sync_release;
     mrp_attr_t        buf[ATTRIBUTE_MAX];
     uint32_t          resid;
 
@@ -421,8 +421,10 @@ static void query_resources_request(client_t *client, mrp_msg_t *req)
             for (resid = 0;   names[resid];   resid++) {
                 attrs = mrp_resource_definition_read_all_attributes(
                                                     resid, ATTRIBUTE_MAX, buf);
+                sync_release = mrp_resource_definition_get_sync_release(resid);
 
                 if (!PUSH(req, RESOURCE_NAME, STRING, names[resid]) ||
+                    !PUSH(req, RESOURCE_SYNC_RELEASE, BOOL, sync_release) ||
                     !write_attributes(req, attrs))
                     goto failed;
             }
@@ -760,6 +762,38 @@ static void acquire_resource_set_request(client_t *client, mrp_msg_t *req,
         mrp_resource_set_release(rset, seqno);
 }
 
+static void did_release_resource_set_request(client_t *client, mrp_msg_t *req,
+                                             uint32_t seqno, void **pcurs)
+{
+    uint16_t            tag;
+    uint16_t            type;
+    size_t              size;
+    mrp_msg_value_t     value;
+    uint32_t            rset_id;
+    mrp_resource_set_t *rset;
+
+    MRP_ASSERT(client, "invalid argument");
+    MRP_ASSERT(client->rscli, "confused with data structures");
+
+    if (!mrp_msg_iterate(req, pcurs, &tag, &type, &value, &size) ||
+        tag != RESPROTO_RESOURCE_SET_ID || type != MRP_MSG_FIELD_UINT32)
+    {
+        reply_with_status(client, req, EINVAL);
+        return;
+    }
+
+    rset_id = value.u32;
+
+    if (!(rset = mrp_resource_client_find_set(client->rscli, rset_id))) {
+        reply_with_status(client, req, ENOENT);
+        return;
+    }
+
+    reply_with_status(client, req, 0);
+
+    mrp_resource_set_did_release(rset, seqno);
+}
+
 static void connection_evt(mrp_transport_t *listen, void *user_data)
 {
     static uint32_t  id;
@@ -891,6 +925,10 @@ static void recvfrom_msg(mrp_transport_t *transp, mrp_msg_t *msg,
         acquire_resource_set_request(client, msg, seqno, false, &cursor);
         break;
 
+    case RESPROTO_DID_RELEASE_RESOURCE_SET:
+        did_release_resource_set_request(client, msg, seqno, &cursor);
+        break;
+
     default:
         mrp_log_warning("%s: unsupported request type %d",
                         plugin->instance, reqtyp);
@@ -919,6 +957,7 @@ static void resource_event_handler(uint32_t reqid, mrp_resource_set_t *rset,
     uint16_t            state;
     mrp_resource_mask_t grant;
     mrp_resource_mask_t advice;
+    mrp_resource_mask_t pending;
     mrp_resource_mask_t mask;
     mrp_resource_mask_t all;
     mrp_msg_t          *msg;
@@ -937,6 +976,7 @@ static void resource_event_handler(uint32_t reqid, mrp_resource_set_t *rset,
     id     = mrp_get_resource_set_id(rset);
     grant  = mrp_get_resource_set_grant(rset);
     advice = mrp_get_resource_set_advice(rset);
+    pending = mrp_get_resource_set_pending_release(rset);
 
     if (mrp_get_resource_set_state(rset) == mrp_resource_acquire)
         state = RESPROTO_ACQUIRE;
@@ -949,6 +989,7 @@ static void resource_event_handler(uint32_t reqid, mrp_resource_set_t *rset,
                          FIELD( RESOURCE_STATE , UINT16, state  ),
                          FIELD( RESOURCE_GRANT , UINT32, grant  ),
                          FIELD( RESOURCE_ADVICE, UINT32, advice ),
+                         FIELD( RESOURCE_PENDING, UINT32, pending ),
                          RESPROTO_MESSAGE_END                   );
 
     if (!msg)
