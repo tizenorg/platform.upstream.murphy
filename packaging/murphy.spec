@@ -46,7 +46,7 @@ BuildRequires: pkgconfig(lua)
 BuildRequires: pkgconfig(libsystemd-daemon)
 BuildRequires: pkgconfig(libsystemd-journal)
 #BuildRequires: pkgconfig(libcap)
-#BuildRequires: pkgconfig(libtzplatform-config)
+BuildRequires: pkgconfig(libtzplatform-config)
 #%if %{with pulse}
 #BuildRequires: pkgconfig(libpulse)
 #%endif
