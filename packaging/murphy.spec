@@ -40,6 +40,7 @@ Requires(post): /bin/systemctl
 #Requires(post): libcap-tools
 Requires(postun): /bin/systemctl
 
+BuildRequires: libtzplatform-config-devel
 BuildRequires: flex
 BuildRequires: bison
 BuildRequires: pkgconfig(lua)
