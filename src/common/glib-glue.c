@@ -171,7 +171,13 @@ static void del_io(void *glue_data, void *id)
 
 static gboolean timer_cb(gpointer user_data)
 {
+    if (user_data == NULL)
+        return FALSE;
+
     tmr_t *t = (tmr_t *)user_data;
+
+    if (t->cb == NULL)
+        return FALSE;
 
     t->cb(t->glue_data, t, t->user_data);
 
@@ -231,7 +237,13 @@ static void mod_timer(void *glue_data, void *id, unsigned int msecs)
 
 static gboolean defer_cb(void *user_data)
 {
+    if (user_data == NULL)
+        return FALSE;
+
     dfr_t *d = (dfr_t *)user_data;
+
+    if (d->cb == NULL)
+        return FALSE;
 
     d->cb(d->glue_data, d, d->user_data);
 
