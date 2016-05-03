@@ -29,7 +29,7 @@
 Summary: Resource policy framework
 Name: murphy
 Version: 0.0.74
-Release: 2
+Release: 3
 License: BSD-2.0
 Group: System/Service
 URL: http://01.org/murphy/

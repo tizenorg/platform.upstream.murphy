@@ -3,8 +3,9 @@ Description=Murphy Resource Policy Daemon
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/murphyd -t systemd -vvv -f
+ExecStart=/usr/bin/murphyd -v --log-level=info -f
 KillSignal=SIGTERM
+Restart=always
 
 [Install]
 WantedBy=default.target
