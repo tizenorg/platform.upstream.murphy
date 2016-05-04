@@ -1051,6 +1051,11 @@ libmurphy_resource_la_LDFLAGS =	\
 libmurphy_resource_la_LIBADD =      \
 		libmurphy-common.la
 
+if DLOG_ENABLED
+libmurphy_resource_la_CFLAGS += $(DLOG_CFLAGS) -DDLOG_ENABLED
+libmurphy_resource_la_LIBADD += $(DLOG_LIBS)
+endif
+
 libmurphy_resource_la_DEPENDENCIES =	\
 		libmurphy-common.la	\
 		linker-script.resource	\
@@ -1422,6 +1427,30 @@ plugin_systemd_la_LDFLAGS = -module -avoid-version
 plugin_systemd_la_LIBADD  = $(SYSTEMD_PLUGIN_LIBS)
 
 plugin_LTLIBRARIES += plugin-systemd.la
+endif
+endif
+endif
+
+# dlog (logging) plugin
+if DLOG_ENABLED
+DLOG_PLUGIN_SOURCES = plugins/plugin-dlog.c
+DLOG_PLUGIN_CFLAGS  = $(DLOG_CFLAGS)
+DLOG_PLUGIN_LIBS    = $(DLOG_LIBS)
+
+if !DISABLED_PLUGIN_DLOG
+if BUILTIN_PLUGIN_DLOG
+BUILTIN_PLUGINS += $(DLOG_PLUGIN_SOURCES)
+BUILTIN_CFLAGS  += $(DLOG_PLUGIN_CFLAGS)
+BUILTIN_LIBS    += $(DLOG_PLUGIN_LIBS)
+else
+plugin_dlog_la_SOURCES = $(DLOG_PLUGIN_SOURCES)
+plugin_dlog_la_CFLAGS  = $(DLOG_PLUGIN_CFLAGS) \
+                            $(MURPHY_CFLAGS) \
+                            $(AM_CFLAGS)
+plugin_dlog_la_LDFLAGS = -module -avoid-version
+plugin_dlog_la_LIBADD  = $(DLOG_PLUGIN_LIBS)
+
+plugin_LTLIBRARIES += plugin-dlog.la
 endif
 endif
 endif
