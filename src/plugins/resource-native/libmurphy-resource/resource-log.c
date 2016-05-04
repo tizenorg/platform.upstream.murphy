@@ -33,9 +33,38 @@
 #include "resource-api.h"
 #include "resource-private.h"
 
+#ifdef DLOG_ENABLED
+#include <dlog.h>
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+#define LOG_TAG "MURPHY_RESOURCE"
+#endif
+
 static void default_logger(mrp_log_level_t level, const char *file,
                            int line, const char *func,
                            const char *format, va_list args)
+#ifdef DLOG_ENABLED
+{
+	va_list cp;
+    int     prio;
+    char    fbuf[1024];
+
+    va_copy(cp, args);
+    switch (level) {
+    case MRP_LOG_ERROR:   prio = DLOG_ERROR;    break;
+    case MRP_LOG_WARNING: prio = DLOG_WARN;     break;
+    case MRP_LOG_INFO:    prio = DLOG_INFO;     break;
+    case MRP_LOG_DEBUG:   prio = DLOG_DEBUG;    break;
+    default:              prio = DLOG_INFO;
+    }
+
+    snprintf(fbuf, sizeof(fbuf), "%s: %s(%d) > %s", file, func, line, format);
+    dlog_vprint(prio, LOG_TAG, fbuf, cp);
+
+    va_end(cp);
+}
+#else
 {
     va_list ap;
 
@@ -43,7 +72,7 @@ static void default_logger(mrp_log_level_t level, const char *file,
     mrp_log_msgv(level, file, line, func, format, ap);
     va_end(ap);
 }
-
+#endif
 
 static mrp_res_logger_t __res_logger = default_logger;
 
