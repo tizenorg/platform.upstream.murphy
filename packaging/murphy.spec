@@ -45,6 +45,7 @@ BuildRequires: bison
 BuildRequires: pkgconfig(lua)
 BuildRequires: pkgconfig(libsystemd-daemon)
 BuildRequires: pkgconfig(libsystemd-journal)
+BuildRequires: pkgconfig(dlog)
 #BuildRequires: pkgconfig(libcap)
 #BuildRequires: pkgconfig(libtzplatform-config)
 #%if %{with pulse}
@@ -489,4 +490,3 @@ ldconfig
 %{_bindir}/test-domain-controller
 %{_bindir}/murphy-console
 %manifest murphy.manifest
-
