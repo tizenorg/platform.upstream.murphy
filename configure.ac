@@ -463,6 +463,30 @@ AC_SUBST(SYSTEMD_ENABLED)
 AC_SUBST(SYSTEMD_CFLAGS)
 AC_SUBST(SYSTEMD_LIBS)
 
+# Check if dlog support should be enabled.
+AC_ARG_ENABLE(dlog,
+              [  --enable-dlog          enable dlog support],
+          [enable_dlog=$enableval], [enable_dlog=auto])
+
+if test "$enable_dlog" != "no"; then
+    PKG_CHECK_MODULES(DLOG, dlog, [have_dlog=yes], [have_dlog=no])
+    if test "$have_dlog" = "no" -a "$enable_dlog" = "yes"; then
+        AC_MSG_ERROR([dlog development libraries not found.])
+    fi
+
+    enable_dlog="$have_dlog"
+else
+    AC_MSG_NOTICE([dlog support is disabled.])
+fi
+
+if test "$enable_dlog" = "yes"; then
+    AC_DEFINE([DLOG_ENABLED], 1, [Enable dlog support ?])
+fi
+AM_CONDITIONAL(DLOG_ENABLED, [test "$enable_dlog" = "yes"])
+AC_SUBST(DLOG_ENABLED)
+AC_SUBST(DLOG_CFLAGS)
+AC_SUBST(DLOG_LIBS)
+
 # Set up murphy CFLAGS and LIBS.
 MURPHY_CFLAGS=""
 MURPHY_LIBS=""
@@ -508,7 +532,7 @@ esac
 internal=""; it=""
 external=""; et=""
 disabled=""; dt=""
-for plugin in $all_plugins; do 
+for plugin in $all_plugins; do
     type=internal
 
     for p in ${dynamic_plugins//,/ }; do
@@ -564,6 +588,7 @@ AM_CONDITIONAL(DISABLED_PLUGIN_RESOURCE_WRT, [check_if_disabled resource-wrt])
 AM_CONDITIONAL(DISABLED_PLUGIN_DOMAIN_CONTROL,
                [check_if_disabled domain-control])
 AM_CONDITIONAL(DISABLED_PLUGIN_SYSTEMD,  [check_if_disabled systemd])
+AM_CONDITIONAL(DISABLED_PLUGIN_DLOG,  [check_if_disabled dlog])
 
 AM_CONDITIONAL(BUILTIN_PLUGIN_TEST,     [check_if_internal test])
 AM_CONDITIONAL(BUILTIN_PLUGIN_DBUS,     [check_if_internal dbus])
@@ -575,9 +600,10 @@ AM_CONDITIONAL(BUILTIN_PLUGIN_DOMAIN_CONTROL,
                [check_if_internal domain-control])
 AM_CONDITIONAL(BUILTIN_PLUGIN_LUA,      [check_if_internal lua])
 AM_CONDITIONAL(BUILTIN_PLUGIN_SYSTEMD,  [check_if_internal systemd])
+AM_CONDITIONAL(BUILTIN_PLUGIN_DLOG,  [check_if_internal dlog])
 
 # Check for Check (unit test framework).
-PKG_CHECK_MODULES(CHECK, 
+PKG_CHECK_MODULES(CHECK,
                   check >= 0.9.4,
                   [has_check="yes"], [has_check="no"])
 AM_CONDITIONAL(HAVE_CHECK, test "x$has_check" = "xyes")
