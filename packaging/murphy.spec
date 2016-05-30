@@ -189,6 +189,7 @@ This package contains various test binaries for Murphy.
 cp %{SOURCE1001} .
 
 %build
+%restore_fcommon
 %if %{with debug}
 export CFLAGS="-O0 -g3"
 V="V=1"
