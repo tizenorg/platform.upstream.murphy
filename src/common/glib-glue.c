@@ -296,6 +296,9 @@ static void mod_defer(void *glue_data, void *id, int enabled)
 
     MRP_UNUSED(glue_data);
 
+    if (d == NULL)
+      return;
+
     if (enabled && !d->gl_t)
         d->gl_t = g_timeout_add(0, defer_cb, d);
     else if (!enabled && d->gl_t) {
